@@ -123,9 +123,10 @@ def build_tab_content(tab_data, tab_key):
             title_font_size=18
         )
         st.plotly_chart(fig_tree, use_container_width=True)
-    else:
-        st.info("داده‌ای برای نمایش هزینه‌ها وجود ندارد."))
-# -----------------------------------------------------
+else:
+        st.info("داده‌ای برای نمایش هزینه‌ها وجود ندارد.")   # ← یک پرانتز حذف شد
+
+    # -----------------------------------------------------
     # ردیف دوم: نمودار میله‌ای (تمام‌عرض)
     # -----------------------------------------------------
     if not expense_data.empty:
@@ -148,10 +149,10 @@ def build_tab_content(tab_data, tab_key):
             margin=dict(t=50, b=20, l=20, r=20)
         )
         st.plotly_chart(fig_bar, use_container_width=True)
-       
+
     st.divider()
 
-            # ====== نمودار دونات یکپارچه (درآمد + هزینه شخصی + هزینه کارگاه) ======
+            # ====== نمودار دونات یکپارچه ======
             st.markdown("### 🍩 نسبت درآمد و هزینه‌ها")
             
             personal_exp = filtered_df[filtered_df['مرکز'] == 'شخصی']['برداشت (ریال)'].sum()
