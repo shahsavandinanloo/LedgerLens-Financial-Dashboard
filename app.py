@@ -124,54 +124,67 @@ def build_tab_content(tab_data, tab_key):
         )
         st.plotly_chart(fig_tree, use_container_width=True)
     else:
-        st.info("داده‌ای برای نمایش هزینه‌ها وجود ندارد.")
-
+        st.info("داده‌ای برای نمایش هزینه‌ها وجود ندارد."))
+# -----------------------------------------------------
+    # ردیف دوم: نمودار میله‌ای (تمام‌عرض)
     # -----------------------------------------------------
-    # ردیف دوم: نمودار دونات و نمودار میله‌ای (دو ستون کنار هم)
-    # -----------------------------------------------------
-    col_graphs1, col_graphs2 = st.columns(2)
-    
-    with col_graphs1:
-        fig_donut = px.pie(
-    names=['درآمد', 'هزینه'], values=[t_inc, t_exp], hole=0.45,
-    color=['درآمد', 'هزینه'],
-    color_discrete_map={'درآمد': '#2ecc71', 'هزینه': '#e74c3c'},
-    title="⚖️ نسبت کل درآمد و هزینه",
-    template=custom_template, height=450
-)
-
-        fig_donut.update_traces(
-            textposition='inside', 
-            textinfo='percent+label', 
-            hovertemplate="%{label}: %{value:,.0f} ریال<extra></extra>",
-            insidetextfont=dict(size=14, color='white')
+    if not expense_data.empty:
+        top_10 = expense_data.groupby('جزئیات')['برداشت (ریال)'].sum().nlargest(10).reset_index()
+        fig_bar = px.bar(
+            top_10, x='برداشت (ریال)', y='جزئیات', orientation='h', text='برداشت (ریال)',
+            title="🔥 ۱۰ رکورد اصلی هزینه‌ها (پرهزینه‌ترین جزئیات)", 
+            color='برداشت (ریال)', color_continuous_scale='Reds',
+            template=custom_template, height=450
         )
-        fig_donut.update_layout(showlegend=False, margin=dict(t=50, b=20, l=20, r=20))
-        st.plotly_chart(fig_donut, use_container_width=True)
-    
-    with col_graphs2:
-        if not expense_data.empty:
-            top_10 = expense_data.groupby('جزئیات')['برداشت (ریال)'].sum().nlargest(10).reset_index()
-            fig_bar = px.bar(
-                top_10, x='برداشت (ریال)', y='جزئیات', orientation='h', text='برداشت (ریال)',
-                title="🔥 ۱۰ رکورد اصلی هزینه‌ها (پرهزینه‌ترین جزئیات)", 
-                color='برداشت (ریال)', color_continuous_scale='Reds',
+        fig_bar.update_traces(
+            texttemplate=' %{text:,.0f} ', 
+            textposition='outside', 
+            hovertemplate="%{y}: %{x:,.0f} ریال<extra></extra>"
+        )
+        fig_bar.update_layout(
+            yaxis={'categoryorder': 'total ascending', 'showgrid': False}, 
+            xaxis={'showgrid': False, 'visible': False}, 
+            yaxis_title=None, xaxis_title=None, 
+            margin=dict(t=50, b=20, l=20, r=20)
+        )
+        st.plotly_chart(fig_bar, use_container_width=True)
+       
+    st.divider()
+
+            # ====== نمودار دونات یکپارچه (درآمد + هزینه شخصی + هزینه کارگاه) ======
+            st.markdown("### 🍩 نسبت درآمد و هزینه‌ها")
+            
+            personal_exp = filtered_df[filtered_df['مرکز'] == 'شخصی']['برداشت (ریال)'].sum()
+            work_exp = filtered_df[filtered_df['مرکز'] == 'کارگاه']['برداشت (ریال)'].sum()
+
+            fig_donut = px.pie(
+                names=['درآمد', 'هزینه کارگاه', 'هزینه شخصی'],
+                values=[total_inc, work_exp, personal_exp],
+                hole=0.45,
+                color=['درآمد', 'هزینه کارگاه', 'هزینه شخصی'],
+                color_discrete_map={
+                    'درآمد': '#2ecc71',
+                    'هزینه کارگاه': '#e74c3c',
+                    'هزینه شخصی': '#f1948a'
+                },
+                title="⚖️ نسبت درآمد و هزینه‌ها (تفکیک شخصی/کارگاه)",
                 template=custom_template, height=450
             )
-            fig_bar.update_traces(
-                texttemplate=' %{text:,.0f} ', 
-                textposition='outside', 
-                hovertemplate="%{y}: %{x:,.0f} ریال<extra></extra>"
+            fig_donut.update_traces(
+                textposition='inside',
+                textinfo='percent+label',
+                hovertemplate="%{label}: %{value:,.0f} ریال<extra></extra>",
+                insidetextfont=dict(size=14, color='white')
             )
-            fig_bar.update_layout(
-                yaxis={'categoryorder': 'total ascending', 'showgrid': False}, 
-                xaxis={'showgrid': False, 'visible': False}, 
-                yaxis_title=None, xaxis_title=None, 
-                margin=dict(t=50, b=20, l=20, r=20)
+            fig_donut.update_layout(
+                showlegend=True,
+                legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5),
+                margin=dict(t=50, b=50, l=20, r=20)
             )
-            st.plotly_chart(fig_bar, use_container_width=True)
+            st.plotly_chart(fig_donut, use_container_width=True)
 
-    st.divider()
+            # ۴. تب‌های تفکیک شده 
+            st.markdown("### 📑 تحلیل تفکیکی مراکز")
 
     # ====== بخش کاوشگر ریز آمار (Drill-down) ======
     st.markdown("#### 🧮 کاوشگر ریز آمار و اطلاعات")
