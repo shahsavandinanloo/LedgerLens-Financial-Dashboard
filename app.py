@@ -4,14 +4,13 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 # ۱. تنظیمات پایه و استایل‌های حرفه‌ای (RTL و فونت وزیر)
-st.set_page_config(page_title="LedgerLens | داشبورد مالی پرو", layout="wide", page_icon="💎")
+st.set_page_config(page_title="LedgerLens | داشبورد مالی", layout="wide", page_icon="💎")
 
 st.markdown("""
 <style>
     @import url('https://v1.fontapi.ir/css/Vazir');
     * { direction: rtl; font-family: 'Vazir', sans-serif; }
     
-    /* استایل اختصاصی کارت‌های KPI */
     .kpi-card {
         background-color: #ffffff;
         padding: 20px;
@@ -23,37 +22,28 @@ st.markdown("""
     }
     .kpi-label { font-size: 14px; color: #666; margin-bottom: 10px; }
     .kpi-value { font-size: 24px; font-weight: bold; color: #1E1E1E; }
-    
-    /* حذف حاشیه‌های اضافی */
-    .block-container { padding-top: 1.5rem; }
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# توابع اعتبارسنجی و پاکسازی (لایه امنیتی و منطق اصلی)
+# توابع اعتبارسنجی و پاکسازی (منطق اصلی)
 # ---------------------------------------------------------
 def validate_excel_structure(file):
-    """بررسی ساختار فایل قبل از پردازش برای جلوگیری از کراش"""
     try:
         temp_df = pd.read_excel(file, header=3, nrows=0)
         required = ['تاریخ', 'توضیحات کاربر', 'واریز (ریال)', 'برداشت (ریال)']
         missing = [c for c in required if c not in temp_df.columns]
-        if missing:
-            return False, f"ستون‌های ضروری یافت نشد: {', '.join(missing)}"
-        return True, ""
+        return (True, "") if not missing else (False, f"ستون‌های زیر یافت نشد: {', '.join(missing)}")
     except:
         return False, "فایل اکسل معتبر نیست."
 
 @st.cache_data 
 def clean_data(file):
-    # ۱. ابتدا اعتبارسنجی ساختار
     is_valid, err_msg = validate_excel_structure(file)
     if not is_valid:
         st.error(f"❌ **خطا در فرمت فایل:** {err_msg}")
-        st.info("💡 فایل باید دارای ستون‌های 'تاریخ' و 'توضیحات کاربر' در ردیف ۴ باشد.")
         st.stop()
 
-    # ۲. پردازش داده‌ها (منطق حساس شما)
     df = pd.read_excel(file, header=3)
     df = df.dropna(subset=['تاریخ'], how='all')
 
@@ -72,8 +62,7 @@ def clean_data(file):
 
     df['واریز (ریال)'] = df['واریز (ریال)'].apply(clean_money)
     df['برداشت (ریال)'] = df['برداشت (ریال)'].apply(clean_money)
-    df['تراز خالص'] = df['واریز (ریال)'] - df['برداشت (ریال)']
-
+    
     def split_tags(text):
         if pd.isna(text) or str(text).strip() == '': return ['-', '-', '-', '-', '-']
         parts = str(text).strip('/').split('/')
@@ -87,22 +76,14 @@ def clean_data(file):
     return df.sort_values('تاریخ')
 
 # ---------------------------------------------------------
-# توابع کمکی UI و کاوشگر
+# تابع ساخت محتوای تب‌ها (فقط برای شخصی و کارگاه)
 # ---------------------------------------------------------
-def kpi_card(label, value, color="#0068c9"):
-    st.markdown(f"""
-        <div class="kpi-card" style="border-right-color: {color};">
-            <div class="kpi-label">{label}</div>
-            <div class="kpi-value">{value:,.0f} <small style="font-size:12px;">ریال</small></div>
-        </div>
-    """, unsafe_allow_html=True)
-
-def build_explorer_content(data, key_suffix, title_prefix=""):
+def build_analysis_tab(data, tab_key):
     if data.empty:
-        st.info(f"داده‌ای برای {title_prefix} وجود ندارد.")
+        st.info("داده‌ای برای این بخش در بازه زمانی انتخاب شده وجود ندارد.")
         return
 
-    # نقشه درختی هزینه‌ها
+    # ۱. نقشه درختی هزینه‌ها
     exp_data = data[data['برداشت (ریال)'] > 0]
     if not exp_data.empty:
         fig_tree = px.treemap(exp_data, path=['کلاس', 'جزئیات'], values='برداشت (ریال)', 
@@ -111,10 +92,10 @@ def build_explorer_content(data, key_suffix, title_prefix=""):
     
     st.divider()
 
-    # کاوشگر Drill-down
-    st.markdown(f"#### 🧮 کاوشگر ریز آمار {title_prefix}")
+    # ۲. کاوشگر ریز آمار
+    st.markdown("#### 🧮 کاوشگر ریز آمار")
     classes = sorted([c for c in data['کلاس'].unique() if str(c) not in ['-', 'nan']])
-    sel_class = st.selectbox("انتخاب دسته‌بندی:", ["نمایش همه"] + classes, key=f"sel_{key_suffix}")
+    sel_class = st.selectbox("انتخاب دسته‌بندی:", ["نمایش همه"] + classes, key=f"sel_{tab_key}")
 
     if sel_class == "نمایش همه":
         c1, c2 = st.columns(2)
@@ -133,27 +114,25 @@ def build_explorer_content(data, key_suffix, title_prefix=""):
 # بدنه اصلی داشبورد
 # ---------------------------------------------------------
 st.title("💎 LedgerLens Pro")
-st.caption("تحلیل‌گر پیشرفته جریان نقدینگی | نسخه سازمانی")
 
-uploaded_file = st.sidebar.file_uploader("📂 بارگذاری فایل اکسل (خروجی خام)", type=['xlsx'])
+uploaded_file = st.sidebar.file_uploader("📂 بارگذاری فایل اکسل", type=['xlsx'])
 
 if uploaded_file:
     df = clean_data(uploaded_file)
     
-    # سایدبار: فیلترها
-    st.sidebar.header("🔍 فیلترهای زمانی")
+    # فیلتر بازه زمانی در سایدبار
     dates = df['تاریخ'].unique().tolist()
-    d_range = st.sidebar.select_slider("بازه گزارش", options=dates, value=(dates[0], dates[-1]))
+    d_range = st.sidebar.select_slider("📅 بازه زمانی", options=dates, value=(dates[0], dates[-1]))
     filtered_df = df[(df['تاریخ'] >= d_range[0]) & (df['تاریخ'] <= d_range[1])]
 
-    # ۱. ردیف شاخص‌های کلیدی
+    # ۱. شاخص‌های اصلی (KPIs)
     t_inc = filtered_df['واریز (ریال)'].sum()
     t_exp = filtered_df['برداشت (ریال)'].sum()
     
     col1, col2, col3 = st.columns(3)
-    with col1: kpi_card("درآمد کل", t_inc, "#2ecc71")
-    with col2: kpi_card("هزینه کل", t_exp, "#e74c3c")
-    with col3: kpi_card("موجودی تراز", (t_inc - t_exp), "#3498db")
+    with col1: st.markdown(f'<div class="kpi-card" style="border-right-color: #2ecc71;"><div class="kpi-label">درآمد کل</div><div class="kpi-value">{t_inc:,.0f}</div></div>', unsafe_allow_html=True)
+    with col2: st.markdown(f'<div class="kpi-card" style="border-right-color: #e74c3c;"><div class="kpi-label">هزینه کل</div><div class="kpi-value">{t_exp:,.0f}</div></div>', unsafe_allow_html=True)
+    with col3: st.markdown(f'<div class="kpi-card" style="border-right-color: #3498db;"><div class="kpi-label">تراز نهایی</div><div class="kpi-value">{(t_inc - t_exp):,.0f}</div></div>', unsafe_allow_html=True)
 
     # ۲. نمودار دونات مرکزی
     st.divider()
@@ -163,23 +142,23 @@ if uploaded_file:
                        color_discrete_sequence=['#2ecc71', '#e74c3c', '#f39c12'], title="⚖️ نسبت منابع و مصارف")
     st.plotly_chart(fig_donut, use_container_width=True)
 
-    # ۳. تب‌های تحلیل و کاوش
-    st.markdown("### 📑 تحلیل و کاوش عمیق داده‌ها")
-    tab1, tab2, tab3 = st.tabs(["👤 حساب شخصی", "🏭 حساب کارگاه", "🔍 کاوشگر هوشمند کل"])
+    # ۳. تب‌ها
+    st.markdown("### 📑 تحلیل و لیست تراکنش‌ها")
+    tab1, tab2, tab3 = st.tabs(["👤 حساب شخصی", "🏭 حساب کارگاه", "📋 لیست کل تراکنش‌ها"])
 
     with tab1:
-        build_explorer_content(filtered_df[filtered_df['مرکز'] == 'شخصی'], "p", "شخصی")
+        build_analysis_tab(filtered_df[filtered_df['مرکز'] == 'شخصی'], "p")
     
     with tab2:
-        build_explorer_content(filtered_df[filtered_df['مرکز'] == 'کارگاه'], "w", "کارگاه")
+        build_analysis_tab(filtered_df[filtered_df['مرکز'] == 'کارگاه'], "w")
 
     with tab3:
-        # کاوشگر برای کل داده‌ها
-        build_explorer_content(filtered_df, "all", "کل منابع")
-        
-        # لیست خام تراکنش‌ها در انتهای همین تب
-        with st.expander("📋 مشاهده لیست خام تمام تراکنش‌های فیلتر شده"):
-            st.dataframe(filtered_df.style.format({'واریز (ریال)': '{:,.0f}', 'برداشت (ریال)': '{:,.0f}'}), use_container_width=True)
+        st.write("**لیست کامل تراکنش‌های فیلتر شده:**")
+        st.dataframe(
+            filtered_df[['تاریخ', 'مرکز', 'کلاس', 'جزئیات', 'واریز (ریال)', 'برداشت (ریال)', 'تکمیلی']]
+            .style.format({'واریز (ریال)': '{:,.0f}', 'برداشت (ریال)': '{:,.0f}'}), 
+            use_container_width=True
+        )
 
 else:
-    st.info("👋 خوش آمدید! لطفاً برای شروع، فایل اکسل خود را بارگذاری کنید.")
+    st.info("👋 برای شروع، فایل اکسل را بارگذاری کنید.")
