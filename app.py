@@ -13,6 +13,16 @@ hide_st_style = """
     footer {visibility: hidden;}
     header {visibility: hidden;}
     .block-container {padding-top: 2rem; padding-bottom: 2rem;}
+    
+    /* تنظیمات مخصوص موبایل */
+    @media (max-width: 768px) {
+        div[data-testid="stMetricValue"] > div {
+            font-size: 1.1rem !important;
+        }
+        div[data-testid="stMetricLabel"] > div {
+            font-size: 0.8rem !important;
+        }
+    }
 </style>
 """
 st.markdown(hide_st_style, unsafe_allow_html=True)
@@ -203,6 +213,16 @@ def build_tab_content(tab_data, tab_key):
 # ---------------------------------------------------------
 # بدنه اصلی اپلیکیشن
 # ---------------------------------------------------------
+def format_currency(num):
+    if abs(num) >= 1_000_000_000_000:
+        return f"{num / 1_000_000_000_000:.2f} همت"
+    elif abs(num) >= 1_000_000_000:
+        return f"{num / 1_000_000_000:.2f} میلیارد"
+    elif abs(num) >= 1_000_000:
+        return f"{num / 1_000_000:.2f} میلیون"
+    else:
+        return f"{num:,.0f}"
+        
 st.title("داشبورد جامع و هوشمند مالی")
 st.markdown("---")
 
@@ -240,9 +260,9 @@ if uploaded_file is not None:
 
             st.markdown("### 📊 شاخص‌های کلیدی عملکرد (KPIs)")
             kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
-            kpi_col1.metric("🟢 مجموع درآمد (واریزی‌ها)", f"{total_inc:,.0f} ریال")
-            kpi_col2.metric("🔴 مجموع هزینه‌ها (برداشت‌ها)", f"{total_exp:,.0f} ریال")
-            kpi_col3.metric("🔵 موجودی نهایی", f"{net_bal:,.0f} ریال")
+            kpi_col1.metric("🟢 مجموع درآمد", format_currency(total_inc) + " ریال")
+            kpi_col2.metric("🔴 مجموع هزینه‌ها", format_currency(total_exp) + " ریال")
+            kpi_col3.metric("🔵 موجودی نهایی", format_currency(net_bal) + " ریال")
             st.divider()
 
             # ۳. نمودارهای کلان (روند روزانه و موجودی تجمعی) 
@@ -280,9 +300,14 @@ if uploaded_file is not None:
                     title=None, template=custom_template, hovermode="x unified",
                     xaxis=dict(title=None, tickangle=-45, showgrid=False),
                     yaxis=dict(title='مبلغ (ریال)'),
-                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                    height=500
-                )
+                    legend=dict(
+    orientation="h", 
+    yanchor="bottom", 
+    y=1.02, 
+    xanchor="center", # تغییر از right به center برای تعادل بهتر در موبایل
+    x=0.5
+),
+
                 st.plotly_chart(fig_daily, use_container_width=True)
 
             with tab_trend_2:
