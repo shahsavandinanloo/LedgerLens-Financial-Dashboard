@@ -531,5 +531,5 @@ if uploaded_file is not None:
 
         except Exception as e:
             st.error(f"❌ خطایی رخ داد: {e}")
-else:
+        else:
     st.info("👋 برای شروع، لطفاً فایل اکسل خام خود را از منوی سمت راست آپلود کنید.")
