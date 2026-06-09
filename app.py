@@ -307,7 +307,8 @@ if uploaded_file is not None:
     xanchor="center", # تغییر از right به center برای تعادل بهتر در موبایل
     x=0.5
 ),
-
+                )
+                
                 st.plotly_chart(fig_daily, use_container_width=True)
 
             with tab_trend_2:
